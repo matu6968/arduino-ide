@@ -127,6 +127,50 @@ env:
           name: macOS_arm64_dmg
         - path: '*macOS_arm64.zip'
           name: macOS_arm64_zip
+    - config:
+        name: Linux (ARM64)
+        runs-on: ubuntu-latest
+        arch: arm64
+        container: |
+          null
+        mergeable-channel-file: 'false'
+      artifacts:
+        - path: '*Linux_ARM64.zip'
+          name: Linux_ARM64_zip
+        - path: '*Linux_ARM64.AppImage'
+          name: Linux_ARM64_app_image
+          environment:
+            AS: aarch64-linux-gnu-as
+            STRIP: aarch64-linux-gnu-strip
+            AR: aarch64-linux-gnu-ar
+            CC: aarch64-linux-gnu-gcc
+            CPP: aarch64-linux-gnu-cpp
+            CXX: aarch64-linux-gnu-g++
+            LD: aarch64-linux-gnu-ld
+            FC: aarch64-linux-gnu-gfortran
+            PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+    - config:
+        name: Linux (ARMv7)
+        runs-on: ubuntu:18.04
+        arch: arm
+        container: |
+          null
+        mergeable-channel-file: 'false'
+      artifacts:
+        - path: '*Linux_ARMv7.zip'
+          name: Linux_ARMv7_zip
+        - path: '*Linux_ARMv7.AppImage'
+          name: Linux_ARMv7_app_image
+          environment:
+            AS: arm-linux-gnueabihf-as
+            STRIP: arm-linux-gnueabihf-strip
+            AR: arm-linux-gnueabihf-ar
+            CC: arm-linux-gnueabihf-gcc
+            CPP: arm-linux-gnueabihf-cpp
+            CXX: arm-linux-gnueabihf-g++
+            LD: arm-linux-gnueabihf-ld
+            FC: arm-linux-gnueabihf-gfortran
+            PKG_CONFIG_PATH: /usr/lib/arm-linux-gnueabihf/pkgconfig
 
 jobs:
   run-determination:
@@ -323,7 +367,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
           cache: 'yarn'
-
+          
+      - name: Add additional dependencies for Ubuntu arm64
+        if: ${{ matrix.friendlyName == 'Ubuntu' && matrix.arch == 'arm64' }}
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libx11-dev libx11-xcb-dev libxkbfile-dev libsecret-1-dev
+          
+      - name: Add additional dependencies for Ubuntu arm
+        if: ${{ matrix.friendlyName == 'Ubuntu' && matrix.arch == 'arm' }}
+        run: |
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf pkg-config-arm-linux-gnueabihf
+          sudo sed -i "s/^deb/deb [arch=amd64,i386]/g" /etc/apt/sources.list
+          echo "deb [arch=arm64,armhf] http://ports.ubuntu.com/ $(lsb_release -s -c) main universe multiverse restricted" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64,armhf] http://ports.ubuntu.com/ $(lsb_release -s -c)-updates main universe multiverse restricted" | sudo tee -a /etc/apt/sources.list
+          sudo dpkg --add-architecture armhf
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev:armhf libx11-xcb-dev:armhf libxkbfile-dev:armhf libsecret-1-dev:armhf
+          
       - name: Install Python 3.x
         if: fromJSON(matrix.config.container) == null && runner.os != 'Windows'
         uses: actions/setup-python@v5
